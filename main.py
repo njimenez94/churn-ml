@@ -8,8 +8,8 @@ FILE = 'data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv'
 PROCESSED_PATH = 'data/processed/data_clean.csv'
 
 MODELS = ["xgboost", "lightgbm", "random_forest", "logistic_regression"]
-N_TRIALS = 30
-CV_FOLDS = 5
+N_TRIALS = 100
+CV_FOLDS = 10
 
 # Columnas originales sin feature engineering (solo numericas + binarias basicas)
 _BASELINE_COLS = [

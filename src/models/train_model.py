@@ -22,15 +22,15 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 def _xgboost_params(trial, scale_pos_weight):
     return {
-        "n_estimators": trial.suggest_int("n_estimators", 300, 800),
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.2),
-        "max_depth": trial.suggest_int("max_depth", 3, 10),
+        "n_estimators": trial.suggest_int("n_estimators", 300, 1200),
+        "learning_rate": trial.suggest_float("learning_rate", 0.005, 0.2),
+        "max_depth": trial.suggest_int("max_depth", 3, 12),
         "subsample": trial.suggest_float("subsample", 0.5, 1.0),
         "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
         "min_child_weight": trial.suggest_int("min_child_weight", 1, 10),
         "gamma": trial.suggest_float("gamma", 0, 5),
-        "reg_alpha": trial.suggest_float("reg_alpha", 0, 5),
-        "reg_lambda": trial.suggest_float("reg_lambda", 0, 5),
+        "reg_alpha": trial.suggest_float("reg_alpha", 0, 10),
+        "reg_lambda": trial.suggest_float("reg_lambda", 0, 10),
         "scale_pos_weight": scale_pos_weight,
         "random_state": 42,
         "n_jobs": -1,
@@ -40,10 +40,10 @@ def _xgboost_params(trial, scale_pos_weight):
 
 def _lightgbm_params(trial, scale_pos_weight):
     return {
-        "n_estimators": trial.suggest_int("n_estimators", 100, 800),
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.2),
-        "max_depth": trial.suggest_int("max_depth", 3, 10),
-        "num_leaves": trial.suggest_int("num_leaves", 20, 150),
+        "n_estimators": trial.suggest_int("n_estimators", 100, 1200),
+        "learning_rate": trial.suggest_float("learning_rate", 0.005, 0.2),
+        "max_depth": trial.suggest_int("max_depth", 3, 12),
+        "num_leaves": trial.suggest_int("num_leaves", 20, 200),
         "subsample": trial.suggest_float("subsample", 0.5, 1.0),
         "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
         "reg_alpha": trial.suggest_float("reg_alpha", 0, 5),
