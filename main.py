@@ -11,12 +11,18 @@ MODELS = ["xgboost", "lightgbm", "random_forest", "logistic_regression"]
 N_TRIALS = 100
 CV_FOLDS = 10
 
-# Columnas originales sin feature engineering (solo numericas + binarias basicas)
+# Columnas originales: numericas, binarias + dummies de Contract/PaymentMethod/etc.
+# (sin estas dummies la comparacion seria injusta — son predictores clave de churn)
 _BASELINE_COLS = [
     "tenure", "MonthlyCharges", "TotalCharges", "SeniorCitizen",
     "gender", "Partner", "Dependents", "PhoneService", "PaperlessBilling",
     "OnlineSecurity", "OnlineBackup", "DeviceProtection",
     "TechSupport", "StreamingTV", "StreamingMovies",
+    "MultipleLines_No phone service", "MultipleLines_Yes",
+    "InternetService_Fiber optic", "InternetService_No",
+    "Contract_One year", "Contract_Two year",
+    "PaymentMethod_Credit card (automatic)", "PaymentMethod_Electronic check",
+    "PaymentMethod_Mailed check",
 ]
 
 # Baseline + features construidas (ratios, buckets, flags)

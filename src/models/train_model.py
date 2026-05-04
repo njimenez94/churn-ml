@@ -12,6 +12,8 @@ from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
@@ -20,7 +22,9 @@ from sklearn.metrics import (
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 
-def _xgboost_params(trial, scale_pos_weight):
+# --- Param spaces: solo params tuneables (sin fixed como random_state, n_jobs) ---
+
+def _xgboost_params(trial):
     return {
         "n_estimators": trial.suggest_int("n_estimators", 300, 1200),
         "learning_rate": trial.suggest_float("learning_rate", 0.005, 0.2),
@@ -31,14 +35,10 @@ def _xgboost_params(trial, scale_pos_weight):
         "gamma": trial.suggest_float("gamma", 0, 5),
         "reg_alpha": trial.suggest_float("reg_alpha", 0, 10),
         "reg_lambda": trial.suggest_float("reg_lambda", 0, 10),
-        "scale_pos_weight": scale_pos_weight,
-        "random_state": 42,
-        "n_jobs": -1,
-        "eval_metric": "logloss",
     }
 
 
-def _lightgbm_params(trial, scale_pos_weight):
+def _lightgbm_params(trial):
     return {
         "n_estimators": trial.suggest_int("n_estimators", 100, 1200),
         "learning_rate": trial.suggest_float("learning_rate", 0.005, 0.2),
@@ -46,61 +46,77 @@ def _lightgbm_params(trial, scale_pos_weight):
         "num_leaves": trial.suggest_int("num_leaves", 20, 200),
         "subsample": trial.suggest_float("subsample", 0.5, 1.0),
         "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
-        "reg_alpha": trial.suggest_float("reg_alpha", 0, 5),
-        "reg_lambda": trial.suggest_float("reg_lambda", 0, 5),
-        "scale_pos_weight": scale_pos_weight,
-        "random_state": 42,
-        "n_jobs": -1,
-        "verbose": -1,
+        "min_child_samples": trial.suggest_int("min_child_samples", 5, 50),
+        "reg_alpha": trial.suggest_float("reg_alpha", 0, 10),
+        "reg_lambda": trial.suggest_float("reg_lambda", 0, 10),
     }
 
 
-def _random_forest_params(trial, scale_pos_weight):
+def _random_forest_params(trial):
     return {
         "n_estimators": trial.suggest_int("n_estimators", 100, 500),
         "max_depth": trial.suggest_int("max_depth", 3, 20),
         "min_samples_split": trial.suggest_int("min_samples_split", 2, 20),
         "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
         "max_features": trial.suggest_categorical("max_features", ["sqrt", "log2"]),
-        "class_weight": "balanced",
-        "random_state": 42,
-        "n_jobs": -1,
     }
 
 
-def _logistic_regression_params(trial, scale_pos_weight):
+def _logistic_regression_params(trial):
     return {
         "C": trial.suggest_float("C", 0.001, 10, log=True),
         "penalty": trial.suggest_categorical("penalty", ["l1", "l2"]),
-        "class_weight": "balanced",
-        "solver": "saga",
-        "max_iter": 2000,
-        "random_state": 42,
     }
 
 
 MODEL_REGISTRY = {
-    "xgboost": {
-        "class": XGBClassifier,
-        "suggest_params": _xgboost_params,
-        "log_model": lambda m: mlflow.xgboost.log_model(m, "model"),
-    },
-    "lightgbm": {
-        "class": LGBMClassifier,
-        "suggest_params": _lightgbm_params,
-        "log_model": lambda m: mlflow.lightgbm.log_model(m, "model"),
-    },
-    "random_forest": {
-        "class": RandomForestClassifier,
-        "suggest_params": _random_forest_params,
-        "log_model": lambda m: mlflow.sklearn.log_model(m, "model"),
-    },
-    "logistic_regression": {
-        "class": LogisticRegression,
-        "suggest_params": _logistic_regression_params,
-        "log_model": lambda m: mlflow.sklearn.log_model(m, "model"),
-    },
+    "xgboost": {"suggest_params": _xgboost_params},
+    "lightgbm": {"suggest_params": _lightgbm_params},
+    "random_forest": {"suggest_params": _random_forest_params},
+    "logistic_regression": {"suggest_params": _logistic_regression_params},
 }
+
+
+def _build_model(model_type, tunable_params, scale_pos_weight):
+    """Construye el modelo con params tuneables + params fijos. LR incluye StandardScaler."""
+    if model_type == "xgboost":
+        return XGBClassifier(
+            **tunable_params,
+            scale_pos_weight=scale_pos_weight,
+            random_state=42, n_jobs=-1, eval_metric="logloss",
+        )
+    elif model_type == "lightgbm":
+        return LGBMClassifier(
+            **tunable_params,
+            scale_pos_weight=scale_pos_weight,
+            random_state=42, n_jobs=-1, verbose=-1,
+        )
+    elif model_type == "random_forest":
+        return RandomForestClassifier(
+            **tunable_params,
+            class_weight="balanced",
+            random_state=42, n_jobs=-1,
+        )
+    elif model_type == "logistic_regression":
+        return Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", LogisticRegression(
+                **tunable_params,
+                class_weight="balanced",
+                solver="liblinear",
+                max_iter=2000,
+                random_state=42,
+            )),
+        ])
+
+
+def _log_model(model, model_type):
+    if model_type == "xgboost":
+        mlflow.xgboost.log_model(model, "model")
+    elif model_type == "lightgbm":
+        mlflow.lightgbm.log_model(model, "model")
+    else:
+        mlflow.sklearn.log_model(model, "model")
 
 
 def prepare_X(df, target_col="Churn", feature_cols=None):
@@ -120,21 +136,18 @@ def split_data(df, target_col="Churn", feature_cols=None, test_size=0.2, random_
 
 
 def build_objective_cv(X_trainval, y_trainval, scale_pos_weight, model_type, cv_folds):
-    entry = MODEL_REGISTRY[model_type]
-    model_class = entry["class"]
-    suggest_params = entry["suggest_params"]
+    suggest_params = MODEL_REGISTRY[model_type]["suggest_params"]
     cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=42)
 
     def objective(trial):
-        params = suggest_params(trial, scale_pos_weight)
+        tunable = suggest_params(trial)
         threshold = trial.suggest_float("threshold", 0.3, 0.7)
+        model = _build_model(model_type, tunable, scale_pos_weight)
 
         fold_f1s = []
         for train_idx, val_idx in cv.split(X_trainval, y_trainval):
             X_tr, X_val = X_trainval.iloc[train_idx], X_trainval.iloc[val_idx]
             y_tr, y_val = y_trainval.iloc[train_idx], y_trainval.iloc[val_idx]
-
-            model = model_class(**params)
             model.fit(X_tr, y_tr)
             proba = model.predict_proba(X_val)[:, 1]
             y_pred = (proba >= threshold).astype(int)
@@ -144,7 +157,7 @@ def build_objective_cv(X_trainval, y_trainval, scale_pos_weight, model_type, cv_
         cv_f1_std = float(np.std(fold_f1s))
 
         with mlflow.start_run(run_name=f"trial_{trial.number}", nested=True):
-            mlflow.log_params({**params, "threshold": threshold})
+            mlflow.log_params({**tunable, "threshold": threshold})
             mlflow.log_metrics({"cv_f1_mean": cv_f1_mean, "cv_f1_std": cv_f1_std})
 
         return cv_f1_mean
@@ -186,8 +199,8 @@ def train_model(
     experiment_name="churn_model_comparison",
     feature_set="full",
     feature_cols=None,
-    n_trials=30,
-    cv_folds=5,
+    n_trials=100,
+    cv_folds=10,
     target_col="Churn",
     test_size=0.2,
     random_state=42,
@@ -220,21 +233,23 @@ def train_model(
             n_trials=n_trials,
         )
 
-        entry = MODEL_REGISTRY[model_type]
         best = study.best_params.copy()
         best_threshold = best.pop("threshold")
 
-        best_model = entry["class"](**best)
+        # Reconstruir con _build_model para incluir params fijos (scale_pos_weight, etc.)
+        best_model = _build_model(model_type, best, scale_pos_weight)
         best_model.fit(X_trainval, y_trainval)
 
         metrics, _, _ = evaluate_model(best_model, X_test, y_test, best_threshold)
 
         mlflow.log_params({**best, "best_threshold": best_threshold})
         mlflow.log_metrics({f"best_{k}": v for k, v in metrics.items()})
-        entry["log_model"](best_model)
+        _log_model(best_model, model_type)
 
-        if hasattr(best_model, "feature_importances_"):
-            importance = dict(zip(X_trainval.columns, best_model.feature_importances_))
+        # feature_importances solo en modelos no-pipeline
+        raw_model = best_model.named_steps.get("model", best_model) if isinstance(best_model, Pipeline) else best_model
+        if hasattr(raw_model, "feature_importances_"):
+            importance = dict(zip(X_trainval.columns, raw_model.feature_importances_))
             mlflow.log_dict(importance, "feature_importance.json")
 
         save_artifacts(
