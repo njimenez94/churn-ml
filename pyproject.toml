@@ -15,4 +15,6 @@ dependencies = [
     "kaggle>=1.6",
     "jupyter>=1.0",
     "optuna>=4.8.0",
+    "shap>=0.51.0",
+    "great-expectations>=1.17.0",
 ]

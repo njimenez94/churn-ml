@@ -10,8 +10,7 @@ def _convert_binary_to_numeric(df, cols= ['Churn']):
         df[col] = df[col].replace({'Yes': 1, 'No': 0})
     return df
 
-def clean_data(file_path):
-    df = pd.read_csv(file_path)
+def clean_data(df):
     df = df.drop(columns=['customerID'])
     df = _convert_total_charges(df)
     df = _convert_binary_to_numeric(df)
