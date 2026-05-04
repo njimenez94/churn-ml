@@ -57,6 +57,24 @@ def print_comparison(results):
     print("Ver todos los runs: mlflow ui")
 
 
+def smoke_test(df):
+    print("Smoke test (1 trial, 2-fold CV, xgboost+baseline)...")
+    try:
+        result = train_model(
+            df,
+            model_type="xgboost",
+            feature_set="smoke",
+            feature_cols=_BASELINE_COLS,
+            n_trials=1,
+            cv_folds=2,
+            experiment_name="churn_smoke_test",
+        )
+        assert result["metrics"]["f1"] > 0, "F1 es 0"
+        print("Smoke test OK\n")
+    except Exception as e:
+        raise RuntimeError(f"Smoke test fallo: {e}") from e
+
+
 def main():
     df = pd.read_csv(FILE)
     df = clean_data(df)
@@ -68,6 +86,8 @@ def main():
     df = build_features(df)
     df.to_csv(PROCESSED_PATH, index=False)
     print(f"Pipeline de datos completo. Shape: {df.shape}")
+
+    smoke_test(df)
 
     total = len(MODELS) * len(FEATURE_SETS)
     results = []
