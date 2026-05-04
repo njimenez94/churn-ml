@@ -17,4 +17,5 @@ dependencies = [
     "optuna>=4.8.0",
     "shap>=0.51.0",
     "great-expectations>=1.17.0",
+    "mlflow>=3.11.1",
 ]
