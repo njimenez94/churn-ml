@@ -60,8 +60,8 @@ target/
 .env
 
 # Database
-*.db
 *.rdb
+mlflow.db
 
 # Pycharm
 .idea
@@ -87,3 +87,11 @@ target/
 
 # Mypy cache
 .mypy_cache/
+
+# MLflow - ignorar binarios del modelo, trackear metricas/params/tags
+mlruns/**/model.ubj
+mlruns/**/model.pkl
+mlruns/**/*.lgb
+
+# Models - ignorar binarios, trackear metadata JSON
+models/*.pkl

@@ -1,0 +1,23 @@
+{
+  "model_type": "lightgbm",
+  "threshold": 0.5046147600349682,
+  "metrics": {
+    "f1": 0.5701492537313433,
+    "precision": 0.6452702702702703,
+    "recall": 0.5106951871657754,
+    "accuracy": 0.7955997161107168,
+    "auc": 0.8400591593686223
+  },
+  "best_params": {
+    "n_estimators": 795,
+    "learning_rate": 0.010285003617964078,
+    "max_depth": 10,
+    "num_leaves": 147,
+    "subsample": 0.7609402908070779,
+    "colsample_bytree": 0.845211467634261,
+    "reg_alpha": 1.0376906411237652,
+    "reg_lambda": 2.4529626609947472
+  },
+  "run_id": "7d8336ad08db488f9518652d11452a5d",
+  "feature_set": "v3_clean"
+}
